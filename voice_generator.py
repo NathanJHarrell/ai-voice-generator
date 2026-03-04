@@ -17,6 +17,7 @@ import threading
 import wave
 from datetime import datetime
 from tkinter import filedialog
+import tkinter as tk
 
 import customtkinter as ctk
 import edge_tts
@@ -266,9 +267,10 @@ class VoiceGeneratorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("AI Voice Generator")
-        self.geometry("780x760")
-        self.minsize(680, 680)
+        self.title("AI Voice Studio")
+        self.geometry("1100x720")
+        self.minsize(900, 700)
+        self.configure(fg_color="#0D0E15")
 
         # State
         self.voices: list[dict] = []
@@ -293,94 +295,151 @@ class VoiceGeneratorApp(ctk.CTk):
     # ── UI Construction ──────────────────────────────────────────────────────
 
     def _build_ui(self):
-        # Title
-        title = ctk.CTkLabel(self, text="AI Voice Generator", font=ctk.CTkFont(size=24, weight="bold"))
-        title.pack(pady=(18, 6))
+        # Colors for the "glassy" dark modern theme
+        # Use deep dark blue for window BG
+        BG_COLOR = "#0D0E15"
+        # We will use transparent colors with subtle borders instead of solid panel colors
+        PANEL_BORDER = "#2B2D42"
+        PANEL_TINT = "#181A25"
+        ACCENT_COLOR = "#3B82F6" # vibrant blue similar to image
+        ACCENT_HOVER = "#2563EB"
+        INPUT_BG = "#0F111A" # slightly lighter than deep bg
 
-        subtitle = ctk.CTkLabel(self, text="Generate natural-sounding voice clips from text", font=ctk.CTkFont(size=13), text_color="gray")
-        subtitle.pack(pady=(0, 12))
+        # Configure grid layout (1x2) - Sidebar and Main Content
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
 
-        # ── Voice settings frame ────────────────────────────────────────────
-        settings_frame = ctk.CTkFrame(self)
-        settings_frame.pack(fill="x", padx=20, pady=(0, 8))
+        # --- Sidebar ---
+        self.sidebar_frame = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=PANEL_TINT)
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_frame.grid_rowconfigure(9, weight=1) # spacer
 
-        # Row 1: Language + Voice
-        row1 = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        row1.pack(fill="x", padx=14, pady=(14, 4))
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="🎙 AI Voice Studio", font=ctk.CTkFont(size=20, weight="bold", family="Segoe UI"))
+        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 20))
 
-        ctk.CTkLabel(row1, text="Language:", width=70, anchor="w").pack(side="left")
+        # Generate button needs a custom style similar to the image
+        self.generate_btn = ctk.CTkButton(
+            self.sidebar_frame, text="⚡ Generate", command=self._on_generate, 
+            height=45, corner_radius=12, font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER
+        )
+        self.generate_btn.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+
+        # Play/Stop row
+        self.play_stop_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        self.play_stop_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
+        self.play_stop_frame.grid_columnconfigure((0, 1), weight=1)
+
+        self.play_btn = ctk.CTkButton(
+            self.play_stop_frame, text="▶", command=self._on_play_pause, 
+            height=40, corner_radius=12, state="disabled", font=ctk.CTkFont(size=20), 
+            fg_color="transparent", hover_color="#1E2030", border_width=1, border_color=ACCENT_COLOR, text_color=ACCENT_COLOR
+        )
+        self.play_btn.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+
+        self.stop_btn = ctk.CTkButton(
+            self.play_stop_frame, text="⏹", command=self._on_stop, 
+            height=40, corner_radius=12, state="disabled", font=ctk.CTkFont(size=20),
+            fg_color="transparent", hover_color="#1E2030", border_width=1, border_color="#EF4444", text_color="#EF4444"
+        )
+        self.stop_btn.grid(row=0, column=1, padx=(5, 0), sticky="ew")
+
+        # Tools
+        btn_kwargs = {
+            "fg_color": "transparent", "hover_color": "#1E2030", 
+            "border_width": 1, "border_color": PANEL_BORDER,
+            "corner_radius": 8, "text_color": "#E0E0E0", "height": 36
+        }
+
+        self.save_btn = ctk.CTkButton(self.sidebar_frame, text="💾 Save As", command=self._on_save, state="disabled", **btn_kwargs)
+        self.save_btn.grid(row=3, column=0, padx=20, pady=6, sticky="ew")
+
+        self.history_btn = ctk.CTkButton(self.sidebar_frame, text="🕒 History", command=self._show_history_dialog, **btn_kwargs)
+        self.history_btn.grid(row=4, column=0, padx=20, pady=6, sticky="ew")
+
+        self.presets_btn = ctk.CTkButton(self.sidebar_frame, text="⭐ Presets", command=self._show_presets_dialog, **btn_kwargs)
+        self.presets_btn.grid(row=5, column=0, padx=20, pady=6, sticky="ew")
+
+        self.batch_btn = ctk.CTkButton(self.sidebar_frame, text="📑 Batch", command=self._show_batch_dialog, **btn_kwargs)
+        self.batch_btn.grid(row=6, column=0, padx=20, pady=6, sticky="ew")
+
+        self.srt_btn = ctk.CTkButton(self.sidebar_frame, text="📝 Export SRT", command=self._on_export_srt, state="disabled", **btn_kwargs)
+        self.srt_btn.grid(row=7, column=0, padx=20, pady=6, sticky="ew")
+
+        # Status at bottom of sidebar
+        self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Ready", font=ctk.CTkFont(size=12), text_color="#A0A0A0", wraplength=160)
+        self.status_label.grid(row=10, column=0, padx=20, pady=(10, 20), sticky="s")
+
+
+        # --- Main Frame ---
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_rowconfigure(1, weight=1) # text input expands
+
+        # Top Section: Options Panel
+        self.options_frame = ctk.CTkFrame(self.main_frame, fg_color=PANEL_TINT, corner_radius=15, border_width=1, border_color=PANEL_BORDER)
+        self.options_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        self.options_frame.grid_columnconfigure((0,1,2), weight=1)
+
+        menu_kwargs = {
+            "fg_color": INPUT_BG, "button_color": INPUT_BG, 
+            "button_hover_color": "#1E2030", "dropdown_fg_color": INPUT_BG,
+            "corner_radius": 8
+        }
+
+        # Language
+        lang_frame = ctk.CTkFrame(self.options_frame, fg_color="transparent")
+        lang_frame.grid(row=0, column=0, padx=20, pady=15, sticky="ew")
+        ctk.CTkLabel(lang_frame, text="🌐 Language", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(anchor="w", pady=(0, 6))
         self.language_var = ctk.StringVar(value="Loading...")
-        self.language_menu = ctk.CTkOptionMenu(row1, variable=self.language_var, values=["Loading..."], command=self._on_language_change, width=220)
-        self.language_menu.pack(side="left", padx=(4, 16))
+        self.language_menu = ctk.CTkOptionMenu(lang_frame, variable=self.language_var, values=["Loading..."], command=self._on_language_change, dynamic_resizing=False, **menu_kwargs)
+        self.language_menu.pack(fill="x")
 
-        ctk.CTkLabel(row1, text="Voice:", width=50, anchor="w").pack(side="left")
+        # Voice
+        voice_frame = ctk.CTkFrame(self.options_frame, fg_color="transparent")
+        voice_frame.grid(row=0, column=1, padx=20, pady=15, sticky="ew")
+        ctk.CTkLabel(voice_frame, text="🗣 Voice", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(anchor="w", pady=(0, 6))
         self.voice_var = ctk.StringVar(value="Loading...")
-        self.voice_menu = ctk.CTkOptionMenu(row1, variable=self.voice_var, values=["Loading..."], width=260)
-        self.voice_menu.pack(side="left", padx=(4, 0))
+        self.voice_menu = ctk.CTkOptionMenu(voice_frame, variable=self.voice_var, values=["Loading..."], dynamic_resizing=False, **menu_kwargs)
+        self.voice_menu.pack(fill="x")
 
-        # Row 2: Rate slider
-        row2 = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        row2.pack(fill="x", padx=14, pady=4)
+        # Format
+        fmt_frame = ctk.CTkFrame(self.options_frame, fg_color="transparent")
+        fmt_frame.grid(row=0, column=2, padx=20, pady=15, sticky="ew")
+        ctk.CTkLabel(fmt_frame, text="💾 Format", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(anchor="w", pady=(0, 6))
+        self.format_var = ctk.StringVar(value="mp3")
+        self.format_menu = ctk.CTkOptionMenu(fmt_frame, variable=self.format_var, values=["mp3", "wav", "ogg"], dynamic_resizing=False, **menu_kwargs)
+        self.format_menu.pack(fill="x")
 
-        ctk.CTkLabel(row2, text="Rate:", width=70, anchor="w").pack(side="left")
-        self.rate_slider = ctk.CTkSlider(row2, from_=-50, to=50, number_of_steps=100, command=self._on_rate_change)
-        self.rate_slider.set(0)
-        self.rate_slider.pack(side="left", fill="x", expand=True, padx=(4, 8))
-        self.rate_label = ctk.CTkLabel(row2, text="+0%", width=55)
-        self.rate_label.pack(side="left")
 
-        # Row 3: Pitch slider
-        row3 = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        row3.pack(fill="x", padx=14, pady=4)
+        # Textbox and Effects Panel
+        self.text_frame = ctk.CTkFrame(self.main_frame, fg_color=PANEL_TINT, corner_radius=15, border_width=1, border_color=PANEL_BORDER)
+        self.text_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 20))
+        self.text_frame.grid_rowconfigure(2, weight=1)
+        self.text_frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(row3, text="Pitch:", width=70, anchor="w").pack(side="left")
-        self.pitch_slider = ctk.CTkSlider(row3, from_=-50, to=50, number_of_steps=100, command=self._on_pitch_change)
-        self.pitch_slider.set(0)
-        self.pitch_slider.pack(side="left", fill="x", expand=True, padx=(4, 8))
-        self.pitch_label = ctk.CTkLabel(row3, text="+0Hz", width=55)
-        self.pitch_label.pack(side="left")
-
-        # Row 4: Volume slider
-        row4 = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        row4.pack(fill="x", padx=14, pady=(4, 14))
-
-        ctk.CTkLabel(row4, text="Volume:", width=70, anchor="w").pack(side="left")
-        self.volume_slider = ctk.CTkSlider(row4, from_=0, to=100, number_of_steps=100, command=self._on_volume_change)
-        self.volume_slider.set(80)
-        self.volume_slider.pack(side="left", fill="x", expand=True, padx=(4, 8))
-        self.volume_label = ctk.CTkLabel(row4, text="80%", width=55)
-        self.volume_label.pack(side="left")
-        pygame.mixer.music.set_volume(0.8)
-
-        # Row 5: Text Effects toggle + Output format
-        row5 = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        row5.pack(fill="x", padx=14, pady=(4, 14))
+        # Effects toggle
+        toolbar_container = ctk.CTkFrame(self.text_frame, fg_color="transparent")
+        toolbar_container.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 0))
 
         self.effects_var = ctk.BooleanVar(value=False)
-        self.effects_checkbox = ctk.CTkCheckBox(row5, text="Text Effects", variable=self.effects_var, command=self._on_effects_toggle, font=ctk.CTkFont(size=12))
-        self.effects_checkbox.pack(side="left")
+        self.effects_switch = ctk.CTkSwitch(
+            toolbar_container, text="✨ Text Effects", variable=self.effects_var, command=self._on_effects_toggle, 
+            font=ctk.CTkFont(weight="bold"), progress_color=ACCENT_COLOR, button_color="#DCE4EE", button_hover_color="#FFFFFF"
+        )
+        self.effects_switch.pack(side="left")
 
-        ctk.CTkLabel(row5, text="Format:", width=60, anchor="e").pack(side="left", padx=(20, 0))
-        self.format_var = ctk.StringVar(value="mp3")
-        self.format_menu = ctk.CTkOptionMenu(row5, variable=self.format_var, values=["mp3", "wav", "ogg"], width=90)
-        self.format_menu.pack(side="left", padx=(4, 0))
+        self.count_label = ctk.CTkLabel(toolbar_container, text="", font=ctk.CTkFont(size=12), text_color="#8A8A8A")
+        self.count_label.pack(side="right")
 
-        # ── Text input ───────────────────────────────────────────────────────
-        text_label = ctk.CTkLabel(self, text="Enter your text:", anchor="w", font=ctk.CTkFont(size=13))
-        text_label.pack(fill="x", padx=22, pady=(4, 2))
-
-        # ── Text Effects toolbar (hidden until Effects mode is on) ─────
-        self.effects_toolbar = ctk.CTkFrame(self)
-        # Don't pack yet — shown/hidden by _on_effects_toggle
-
-        toolbar_label = ctk.CTkLabel(self.effects_toolbar, text="Insert:", font=ctk.CTkFont(size=11), text_color="gray")
-        toolbar_label.pack(side="left", padx=(8, 4))
-
-        # Each tuple: (button label, tag to insert, status hint)
+        # Effects Toolbar (hidden initially)
+        self.effects_toolbar = ctk.CTkFrame(self.text_frame, fg_color="transparent")
+        
         effect_buttons = [
             ("Pause",       "[pause]",                "Insert a 0.5s pause"),
             ("Long Pause",  "[long pause]",           "Insert a 1.5s pause"),
-            ("Whisper",     "[whisper]...[/whisper]",  "Wrap selection in whisper (very quiet)"),
+            ("Whisper",     "[whisper]...[/whisper]",  "Wrap selection in whisper"),
             ("Soft",        "[soft]...[/soft]",        "Wrap selection in soft voice"),
             ("Loud",        "[loud]...[/loud]",        "Wrap selection in loud voice"),
             ("Slow",        "[slow]...[/slow]",        "Wrap selection in slow speech"),
@@ -391,63 +450,74 @@ class VoiceGeneratorApp(ctk.CTk):
 
         for label, tag, hint in effect_buttons:
             btn = ctk.CTkButton(
-                self.effects_toolbar, text=label, width=0, height=26,
-                font=ctk.CTkFont(size=11), fg_color="#5b2c6f", hover_color="#7d3c98",
+                self.effects_toolbar, text=label, width=0, height=28, corner_radius=8,
+                font=ctk.CTkFont(size=11, weight="bold"), fg_color="transparent", hover_color="#1E2030", 
+                border_width=1, border_color=PANEL_BORDER, text_color=ACCENT_COLOR,
                 command=lambda t=tag, h=hint: self._insert_effect_tag(t, h),
             )
-            btn.pack(side="left", padx=2, pady=4)
+            btn.pack(side="left", padx=3, pady=5)
 
-        self.text_input = ctk.CTkTextbox(self, height=180, font=ctk.CTkFont(size=14))
-        self.text_input.pack(fill="both", expand=True, padx=20, pady=(0, 2))
+        # Text input
+        self.text_input = ctk.CTkTextbox(
+            self.text_frame, font=ctk.CTkFont(size=15, family="Segoe UI"), 
+            corner_radius=10, fg_color=INPUT_BG, border_width=1, border_color=PANEL_BORDER,
+            text_color="#E0E0E0"
+        )
+        self.text_input.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
         self.text_input.insert("1.0", "Hello! This is a sample text. Try changing the voice and settings to hear different results.")
-
-        # ── Character / word count ──────────────────────────────────────────
-        self.count_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=11), text_color="gray", anchor="e")
-        self.count_label.pack(fill="x", padx=22, pady=(0, 6))
         self.text_input.bind("<KeyRelease>", lambda e: self._update_text_counts())
         self._update_text_counts()
 
-        # ── Buttons ──────────────────────────────────────────────────────────
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(0, 4))
 
-        self.generate_btn = ctk.CTkButton(btn_frame, text="Generate", command=self._on_generate, width=140, height=38, font=ctk.CTkFont(size=14, weight="bold"))
-        self.generate_btn.pack(side="left", padx=(0, 8))
+        # Bottom Section (Sliders and Waveform)
+        self.bottom_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.bottom_frame.grid(row=2, column=0, sticky="ew")
+        self.bottom_frame.grid_columnconfigure(1, weight=1)
 
-        self.play_btn = ctk.CTkButton(btn_frame, text="Play", command=self._on_play_pause, width=90, height=38, state="disabled")
-        self.play_btn.pack(side="left", padx=(0, 8))
+        # Sliders Panel
+        self.sliders_frame = ctk.CTkFrame(self.bottom_frame, fg_color=PANEL_TINT, corner_radius=15, border_width=1, border_color=PANEL_BORDER)
+        self.sliders_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
 
-        self.stop_btn = ctk.CTkButton(btn_frame, text="Stop", command=self._on_stop, width=90, height=38, state="disabled", fg_color="#c0392b", hover_color="#e74c3c")
-        self.stop_btn.pack(side="left", padx=(0, 8))
+        slider_kwargs = {"button_color": ACCENT_COLOR, "button_hover_color": ACCENT_HOVER, "progress_color": ACCENT_COLOR}
 
-        self.batch_btn = ctk.CTkButton(btn_frame, text="Batch", command=self._show_batch_dialog, width=80, height=38, fg_color="#8e44ad", hover_color="#9b59b6")
-        self.batch_btn.pack(side="left", padx=(0, 8))
+        # Rate
+        rate_row = ctk.CTkFrame(self.sliders_frame, fg_color="transparent")
+        rate_row.pack(fill="x", padx=20, pady=(15, 8))
+        ctk.CTkLabel(rate_row, text="⏱ Rate", width=60, anchor="w", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(side="left")
+        self.rate_slider = ctk.CTkSlider(rate_row, from_=-50, to=50, number_of_steps=100, command=self._on_rate_change, width=160, **slider_kwargs)
+        self.rate_slider.set(0)
+        self.rate_slider.pack(side="left", padx=15)
+        self.rate_label = ctk.CTkLabel(rate_row, text="+0%", width=40, text_color="#A0A0A0")
+        self.rate_label.pack(side="left")
 
-        self.history_btn = ctk.CTkButton(btn_frame, text="History", command=self._show_history_dialog, width=80, height=38, fg_color="#2c3e50", hover_color="#34495e")
-        self.history_btn.pack(side="left", padx=(0, 8))
+        # Pitch
+        pitch_row = ctk.CTkFrame(self.sliders_frame, fg_color="transparent")
+        pitch_row.pack(fill="x", padx=20, pady=10)
+        ctk.CTkLabel(pitch_row, text="🎵 Pitch", width=60, anchor="w", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(side="left")
+        self.pitch_slider = ctk.CTkSlider(pitch_row, from_=-50, to=50, number_of_steps=100, command=self._on_pitch_change, width=160, **slider_kwargs)
+        self.pitch_slider.set(0)
+        self.pitch_slider.pack(side="left", padx=15)
+        self.pitch_label = ctk.CTkLabel(pitch_row, text="+0Hz", width=40, text_color="#A0A0A0")
+        self.pitch_label.pack(side="left")
 
-        self.presets_btn = ctk.CTkButton(btn_frame, text="Presets", command=self._show_presets_dialog, width=80, height=38, fg_color="#d68910", hover_color="#f39c12")
-        self.presets_btn.pack(side="left", padx=(0, 8))
+        # Volume
+        vol_row = ctk.CTkFrame(self.sliders_frame, fg_color="transparent")
+        vol_row.pack(fill="x", padx=20, pady=(8, 15))
+        ctk.CTkLabel(vol_row, text="🔊 Vol", width=60, anchor="w", font=ctk.CTkFont(size=13, weight="bold"), text_color="#D0D0D0").pack(side="left")
+        self.volume_slider = ctk.CTkSlider(vol_row, from_=0, to=100, number_of_steps=100, command=self._on_volume_change, width=160, **slider_kwargs)
+        self.volume_slider.set(80)
+        self.volume_slider.pack(side="left", padx=15)
+        self.volume_label = ctk.CTkLabel(vol_row, text="80%", width=40, text_color="#A0A0A0")
+        self.volume_label.pack(side="left")
+        pygame.mixer.music.set_volume(0.8)
 
-        self.help_btn = ctk.CTkButton(btn_frame, text="?", command=self._show_shortcuts_dialog, width=38, height=38, fg_color="#7f8c8d", hover_color="#95a5a6", font=ctk.CTkFont(size=16, weight="bold"))
-        self.help_btn.pack(side="right")
-
-        self.save_btn = ctk.CTkButton(btn_frame, text="Save As...", command=self._on_save, width=110, height=38, state="disabled", fg_color="#27ae60", hover_color="#2ecc71")
-        self.save_btn.pack(side="right", padx=(0, 8))
-
-        self.srt_btn = ctk.CTkButton(btn_frame, text="SRT", command=self._on_export_srt, width=50, height=38, state="disabled", fg_color="#2980b9", hover_color="#3498db")
-        self.srt_btn.pack(side="right", padx=(0, 8))
-
-        # ── Waveform Visualizer ──────────────────────────────────────────────
-        import tkinter as tk
-        self.waveform_canvas = tk.Canvas(self, height=60, bg="#1a1a2e", highlightthickness=0)
-        self.waveform_canvas.pack(fill="x", padx=20, pady=(4, 0))
-        self._draw_waveform_placeholder()
-
-        # ── Status bar ───────────────────────────────────────────────────────
-        self.status_label = ctk.CTkLabel(self, text="Ready", font=ctk.CTkFont(size=12), text_color="gray", anchor="w")
-        self.status_label.pack(fill="x", padx=22, pady=(4, 10))
-
+        # Waveform Panel
+        self.waveform_frame = ctk.CTkFrame(self.bottom_frame, fg_color=PANEL_TINT, corner_radius=15, border_width=1, border_color=PANEL_BORDER)
+        # Hidden initially - only shows when playing
+        
+        self.waveform_canvas = tk.Canvas(self.waveform_frame, height=140, bg=BG_COLOR, highlightthickness=0) 
+        self.waveform_canvas.pack(fill="both", expand=True, padx=20, pady=20)
+        
         # ── Keyboard shortcuts ──────────────────────────────────────────────
         self.bind("<Control-Return>", lambda e: self._on_generate())
         self.bind("<Control-p>", lambda e: self._on_play_pause())
@@ -455,8 +525,7 @@ class VoiceGeneratorApp(ctk.CTk):
         self.bind("<Escape>", lambda e: self._on_stop())
         self.bind("<F1>", lambda e: self._show_shortcuts_dialog())
 
-        # Shortcut hint in status bar on first load
-        self._shortcuts_hint = "Shortcuts: Ctrl+Enter=Generate | Ctrl+P=Play/Pause | Esc=Stop | Ctrl+S=Save | F1=Help"
+        self._shortcuts_hint = "Shortcuts: Ctrl+Enter=Gen | Ctrl+P=Play | Esc=Stop"
 
     # ── Voice Loading ────────────────────────────────────────────────────────
 
@@ -550,13 +619,13 @@ class VoiceGeneratorApp(ctk.CTk):
     def _on_effects_toggle(self):
         """Show or hide the Text Effects toolbar."""
         if self.effects_var.get():
-            self.effects_toolbar.pack(fill="x", padx=20, pady=(0, 2), before=self.text_input)
+            self.effects_toolbar.grid(row=1, column=0, sticky="ew", padx=15, pady=(5, 5))
             if not PYDUB_AVAILABLE:
                 self._set_status("Warning: ffmpeg not found — effects tags will be stripped. Install ffmpeg for full effects.")
             else:
                 self._set_status("Text Effects ON — use toolbar buttons or type tags like [slow]...[/slow]")
         else:
-            self.effects_toolbar.pack_forget()
+            self.effects_toolbar.grid_remove()
             self._set_status("Text Effects OFF")
 
     def _insert_effect_tag(self, tag: str, hint: str):
@@ -662,7 +731,7 @@ class VoiceGeneratorApp(ctk.CTk):
 
         self.is_generating = True
         self._stop_playback()
-        self.generate_btn.configure(state="disabled", text="Generating...")
+        self.generate_btn.configure(state="disabled", text="⏳ Generating...")
         self._set_status("Generating audio...")
 
         rate_val = int(self.rate_slider.get())
@@ -815,7 +884,7 @@ class VoiceGeneratorApp(ctk.CTk):
 
     def _on_generate_complete(self):
         self.is_generating = False
-        self.generate_btn.configure(state="normal", text="Generate")
+        self.generate_btn.configure(state="normal", text="⚡ Generate")
         self.play_btn.configure(state="normal")
         self.stop_btn.configure(state="normal")
         self.save_btn.configure(state="normal")
@@ -826,14 +895,12 @@ class VoiceGeneratorApp(ctk.CTk):
             if len(self.history) > 50:  # Cap at 50 entries
                 self.history = self.history[:50]
             self._last_gen_meta = None
-        # Draw waveform
-        if self.current_audio_path:
-            self._draw_waveform(self.current_audio_path)
+        # Waveform will be drawn on play
         self._set_status("Audio generated! Click Play to listen or Save As to export.")
 
     def _on_generate_error(self, error_msg: str):
         self.is_generating = False
-        self.generate_btn.configure(state="normal", text="Generate")
+        self.generate_btn.configure(state="normal", text="⚡ Generate")
         self._set_status(f"Generation failed: {error_msg}")
 
     # ── Playback ─────────────────────────────────────────────────────────────
@@ -845,7 +912,7 @@ class VoiceGeneratorApp(ctk.CTk):
         if self.is_playing:
             pygame.mixer.music.pause()
             self.is_playing = False
-            self.play_btn.configure(text="Play")
+            self.play_btn.configure(text="▶")
             self._set_status("Paused")
         else:
             if pygame.mixer.music.get_busy():
@@ -854,7 +921,8 @@ class VoiceGeneratorApp(ctk.CTk):
                 pygame.mixer.music.load(self.current_audio_path)
                 pygame.mixer.music.play()
             self.is_playing = True
-            self.play_btn.configure(text="Pause")
+            self.play_btn.configure(text="⏸")
+            self._draw_waveform(self.current_audio_path)
             self._set_status("Playing...")
             self._check_playback_end()
 
@@ -865,13 +933,15 @@ class VoiceGeneratorApp(ctk.CTk):
     def _stop_playback(self):
         pygame.mixer.music.stop()
         self.is_playing = False
-        self.play_btn.configure(text="Play")
+        self.play_btn.configure(text="▶")
+        self.waveform_frame.grid_forget()
 
     def _check_playback_end(self):
         """Poll to detect when playback finishes."""
         if self.is_playing and not pygame.mixer.music.get_busy():
             self.is_playing = False
-            self.play_btn.configure(text="Play")
+            self.play_btn.configure(text="▶")
+            self.waveform_frame.grid_forget()
             self._set_status("Playback finished")
             return
         if self.is_playing:
@@ -1091,7 +1161,7 @@ class VoiceGeneratorApp(ctk.CTk):
                         pygame.mixer.music.load(p)
                         pygame.mixer.music.play()
                         self.is_playing = True
-                        self.play_btn.configure(text="Pause")
+                        self.play_btn.configure(text="⏸")
                         self._set_status("Playing from history...")
                         self._check_playback_end()
                     return play_clip
@@ -1148,14 +1218,15 @@ class VoiceGeneratorApp(ctk.CTk):
     def _draw_waveform_placeholder(self):
         """Draw a flat-line placeholder when no audio is loaded."""
         self.waveform_canvas.delete("all")
-        w = self.waveform_canvas.winfo_width() or 740
-        h = 60
+        w = self.waveform_canvas.winfo_width() or 900
+        h = 80
         mid = h // 2
-        self.waveform_canvas.create_line(0, mid, w, mid, fill="#2d3436", width=1)
-        self.waveform_canvas.create_text(w // 2, mid, text="No waveform — generate audio first", fill="#636e72", font=("Segoe UI", 9))
+        self.waveform_canvas.create_line(0, mid, w, mid, fill="#1E2030", width=2)
+        self.waveform_canvas.create_text(w // 2, mid, text="No waveform — generate audio first", fill="#7f8c8d", font=("Segoe UI", 12))
 
     def _draw_waveform(self, audio_path: str):
         """Draw a waveform from an audio file on the canvas."""
+        self.waveform_frame.grid(row=0, column=1, sticky="nsew")
         try:
             # Convert mp3 to wav samples using pydub if available, else use basic display
             samples = self._extract_samples(audio_path)
@@ -1165,8 +1236,8 @@ class VoiceGeneratorApp(ctk.CTk):
 
             self.waveform_canvas.delete("all")
             self.waveform_canvas.update_idletasks()
-            w = self.waveform_canvas.winfo_width() or 740
-            h = 60
+            w = self.waveform_canvas.winfo_width() or 900
+            h = 80
             mid = h // 2
 
             # Downsample to fit canvas width
@@ -1195,18 +1266,18 @@ class VoiceGeneratorApp(ctk.CTk):
                 x = i * bar_width
                 # Draw symmetric bar
                 color = self._waveform_color(norm)
-                self.waveform_canvas.create_line(x, mid - bar_h, x, mid + bar_h, fill=color, width=max(1, bar_width * 0.8))
+                self.waveform_canvas.create_line(x, mid - bar_h, x, mid + bar_h, fill=color, width=max(2.0, bar_width * 0.8), capstyle="round")
 
         except Exception:
             self._draw_waveform_placeholder()
 
     @staticmethod
     def _waveform_color(normalized: float) -> str:
-        """Return a gradient color from blue (quiet) to cyan (loud)."""
-        r = int(41 + normalized * 30)
-        g = int(128 + normalized * 100)
-        b = int(185 + normalized * 50)
-        return f"#{min(r, 255):02x}{min(g, 255):02x}{min(b, 255):02x}"
+        """Return a vibrant gradient color from purple to bright cyan (loud)."""
+        r = int(123 + normalized * (59 - 123))
+        g = int(97 + normalized * (130 - 97))
+        b = int(255 + normalized * (246 - 255))
+        return f"#{min(max(r, 0), 255):02x}{min(max(g, 0), 255):02x}{min(max(b, 0), 255):02x}"
 
     @staticmethod
     def _extract_samples(audio_path: str) -> list[int]:
