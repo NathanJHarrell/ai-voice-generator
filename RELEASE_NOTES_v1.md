@@ -26,16 +26,38 @@ The first release of AI Voice Generator, a free and open-source desktop app for 
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.10+ ([download here](https://www.python.org/downloads/))
 - Internet connection (edge-tts uses Microsoft's online TTS service)
 - ffmpeg (optional, enables text effects, WAV/OGG export, long text stitching, and pydub-based waveform)
 
-## Install
+## Quick Start
 
-```bash
+### Windows
+
+```powershell
 pip install edge-tts customtkinter pygame pydub
 python voice_generator.py
 ```
+
+> **Note:** Use `python`, not `python3`, on Windows. When installing Python, make sure to check **"Add Python to PATH"**.
+
+### macOS
+
+```bash
+brew install python ffmpeg
+pip3 install edge-tts customtkinter pygame pydub
+python3 voice_generator.py
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt install python3 python3-pip python3-tk ffmpeg
+pip3 install edge-tts customtkinter pygame pydub
+python3 voice_generator.py
+```
+
+For detailed setup instructions, see the [README](https://github.com/natethemighty1/ai-voice-generator#setup).
 
 ## What's Next
 

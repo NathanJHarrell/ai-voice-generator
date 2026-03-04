@@ -17,24 +17,101 @@ A desktop application for generating natural-sounding voice clips using Microsof
 - **Generation history** — replay and manage recent clips
 - **Keyboard shortcuts** — Ctrl+Enter to generate, Ctrl+P to play, and more
 
-## Installation
+## Setup
+
+### 1. Install Python
+
+You need Python 3.10 or newer. If you don't have it yet, follow the instructions for your platform below.
+
+#### Windows
+
+Download the installer from [python.org/downloads](https://www.python.org/downloads/). During installation, **check the box that says "Add Python to PATH"** — this is important. Once installed, open PowerShell and verify:
+
+```powershell
+python --version
+```
+
+> **Note:** On Windows, use `python` (not `python3`).
+
+#### macOS
+
+Python 3 can be installed with Homebrew:
 
 ```bash
+brew install python
+```
+
+Or download the installer from [python.org/downloads](https://www.python.org/downloads/). Verify:
+
+```bash
+python3 --version
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip python3-tk
+```
+
+Verify:
+
+```bash
+python3 --version
+```
+
+> **Note:** On Linux, you also need `python3-tk` for the GUI. On Fedora/RHEL, use `sudo dnf install python3-tkinter` instead.
+
+### 2. Install Dependencies
+
+#### Windows
+
+```powershell
 pip install edge-tts customtkinter pygame pydub
 ```
 
-For full feature support (text effects, WAV/OGG export, waveform with pydub), install ffmpeg:
+#### macOS / Linux
 
 ```bash
+pip3 install edge-tts customtkinter pygame pydub
+```
+
+### 3. Install ffmpeg (Optional but Recommended)
+
+ffmpeg enables text effects, WAV/OGG export, long text stitching, and enhanced waveform display. The app works without it, but these features will be limited.
+
+#### Windows
+
+```powershell
 winget install Gyan.FFmpeg
 ```
 
-> The app will auto-detect ffmpeg on your system or attempt to download a portable copy on first run.
+After installing, **close and reopen PowerShell** for the PATH to update. Alternatively, the app will attempt to auto-detect ffmpeg on your system or download a portable copy on first run.
+
+#### macOS
+
+```bash
+brew install ffmpeg
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt install ffmpeg
+```
 
 ## Usage
 
-```bash
+#### Windows
+
+```powershell
 python voice_generator.py
+```
+
+#### macOS / Linux
+
+```bash
+python3 voice_generator.py
 ```
 
 ## Keyboard Shortcuts
@@ -63,5 +140,10 @@ Enable "Text Effects" and use tags in your text:
 ## Requirements
 
 - Python 3.10+
-- Windows/macOS/Linux (edge-tts requires internet connection)
+- Internet connection (edge-tts uses Microsoft's online TTS service)
 - ffmpeg (optional, for advanced features)
+- Windows, macOS, or Linux
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
