@@ -1,8 +1,14 @@
 # AI Voice Generator
 
-A desktop application for generating natural-sounding voice clips using Microsoft Edge's text-to-speech engine.
+A free, open-source desktop application for generating natural-sounding voice clips powered by real AI voices.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue) ![License](https://img.shields.io/badge/License-MIT-green)
+
+## How It Works
+
+This app uses [edge-tts](https://github.com/rany2/edge-tts), which connects to **Microsoft Edge's cloud-based neural text-to-speech service** — the same AI engine that powers the "Read Aloud" feature in the Edge browser. These are real neural network-generated voices, not old-school robotic TTS. They sound natural, support a wide range of emotions and speaking styles, and are free to use.
+
+Your text is sent to Microsoft's servers, processed by their neural TTS models, and the generated audio is returned. You can save your clips as MP3, WAV, or OGG. An internet connection is required for voice generation.
 
 ## Features
 
