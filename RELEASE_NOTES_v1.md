@@ -1,3 +1,9 @@
+# Release 1.1 — GUI Improvements
+- Modernized UI layout with a sidebar structure
+- New dark glassy CustomTkinter theme
+- Added vibrant accent colors and media control buttons
+- Optimized window size and responsive design
+
 # Release 1.0 — Base Application
 
 The first release of AI Voice Generator, a free and open-source desktop app for generating natural-sounding voice clips using Microsoft Edge's text-to-speech engine.
