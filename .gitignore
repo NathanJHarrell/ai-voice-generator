@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+ffmpeg/
+voice_presets.json
+*.mp3
+*.wav
+*.ogg
+*.srt

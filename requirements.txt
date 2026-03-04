@@ -1,0 +1,4 @@
+edge-tts
+customtkinter
+pygame
+pydub
